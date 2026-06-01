@@ -1,0 +1,294 @@
+import json
+from dataclasses import dataclass
+
+try:
+    from unitree_sdk2py.g1.arm.g1_arm_action_api import (
+        ARM_ACTION_API_VERSION,
+        ARM_ACTION_SERVICE_NAME,
+        ROBOT_API_ID_ARM_ACTION_EXECUTE_ACTION,
+        ROBOT_API_ID_ARM_ACTION_GET_ACTION_LIST,
+    )
+    from unitree_sdk2py.g1.audio.g1_audio_api import (
+        AUDIO_API_VERSION,
+        AUDIO_SERVICE_NAME,
+        ROBOT_API_ID_AUDIO_ASR,
+        ROBOT_API_ID_AUDIO_GET_VOLUME,
+        ROBOT_API_ID_AUDIO_SET_RGB_LED,
+        ROBOT_API_ID_AUDIO_SET_VOLUME,
+        ROBOT_API_ID_AUDIO_START_PLAY,
+        ROBOT_API_ID_AUDIO_STOP_PLAY,
+        ROBOT_API_ID_AUDIO_TTS,
+    )
+    from unitree_sdk2py.g1.loco.g1_loco_api import (
+        LOCO_API_VERSION,
+        LOCO_SERVICE_NAME,
+        ROBOT_API_ID_LOCO_GET_BALANCE_MODE,
+        ROBOT_API_ID_LOCO_GET_FSM_ID,
+        ROBOT_API_ID_LOCO_GET_FSM_MODE,
+        ROBOT_API_ID_LOCO_GET_PHASE,
+        ROBOT_API_ID_LOCO_GET_STAND_HEIGHT,
+        ROBOT_API_ID_LOCO_GET_SWING_HEIGHT,
+        ROBOT_API_ID_LOCO_SET_ARM_TASK,
+        ROBOT_API_ID_LOCO_SET_BALANCE_MODE,
+        ROBOT_API_ID_LOCO_SET_FSM_ID,
+        ROBOT_API_ID_LOCO_SET_STAND_HEIGHT,
+        ROBOT_API_ID_LOCO_SET_SWING_HEIGHT,
+        ROBOT_API_ID_LOCO_SET_VELOCITY,
+    )
+    from unitree_sdk2py.rpc.server import Server
+except ModuleNotFoundError:
+    ARM_ACTION_SERVICE_NAME = "arm"
+    ARM_ACTION_API_VERSION = "1.0.0.14"
+    ROBOT_API_ID_ARM_ACTION_EXECUTE_ACTION = 7106
+    ROBOT_API_ID_ARM_ACTION_GET_ACTION_LIST = 7107
+
+    AUDIO_SERVICE_NAME = "voice"
+    AUDIO_API_VERSION = "1.0.0.0"
+    ROBOT_API_ID_AUDIO_TTS = 1001
+    ROBOT_API_ID_AUDIO_ASR = 1002
+    ROBOT_API_ID_AUDIO_START_PLAY = 1003
+    ROBOT_API_ID_AUDIO_STOP_PLAY = 1004
+    ROBOT_API_ID_AUDIO_GET_VOLUME = 1005
+    ROBOT_API_ID_AUDIO_SET_VOLUME = 1006
+    ROBOT_API_ID_AUDIO_SET_RGB_LED = 1010
+
+    LOCO_SERVICE_NAME = "sport"
+    LOCO_API_VERSION = "1.0.0.0"
+    ROBOT_API_ID_LOCO_GET_FSM_ID = 7001
+    ROBOT_API_ID_LOCO_GET_FSM_MODE = 7002
+    ROBOT_API_ID_LOCO_GET_BALANCE_MODE = 7003
+    ROBOT_API_ID_LOCO_GET_SWING_HEIGHT = 7004
+    ROBOT_API_ID_LOCO_GET_STAND_HEIGHT = 7005
+    ROBOT_API_ID_LOCO_GET_PHASE = 7006
+    ROBOT_API_ID_LOCO_SET_FSM_ID = 7101
+    ROBOT_API_ID_LOCO_SET_BALANCE_MODE = 7102
+    ROBOT_API_ID_LOCO_SET_SWING_HEIGHT = 7103
+    ROBOT_API_ID_LOCO_SET_STAND_HEIGHT = 7104
+    ROBOT_API_ID_LOCO_SET_VELOCITY = 7105
+    ROBOT_API_ID_LOCO_SET_ARM_TASK = 7106
+
+    class Server:
+        def __init__(self, _name: str):
+            pass
+
+        def _SetApiVersion(self, _api_version: str):
+            pass
+
+        def _RegistHandler(self, _api_id: int, _handler, _check_lease: int):
+            pass
+
+        def Start(self, _enable_prio_queue: bool = False):
+            raise RuntimeError("unitree_sdk2py is required to start DDS RPC stubs")
+
+
+def _json_data(value):
+    return json.dumps({"data": value})
+
+
+def _parse_json(parameter: str):
+    if not parameter:
+        return {}
+    return json.loads(parameter)
+
+
+@dataclass
+class G1LocoStubState:
+    fsm_id: int = 500
+    fsm_mode: int = 0
+    balance_mode: int = 0
+    swing_height: float = 0.0
+    stand_height: float = 0.0
+    phase: str = "stub"
+    velocity: tuple = (0.0, 0.0, 0.0)
+    velocity_duration: float = 0.0
+    arm_task_id: int = 0
+
+
+class G1LocoStubServer(Server):
+    def __init__(self, state=None):
+        super().__init__(LOCO_SERVICE_NAME)
+        self.state = state or G1LocoStubState()
+
+    def Init(self):
+        self._SetApiVersion(LOCO_API_VERSION)
+        self._RegistHandler(ROBOT_API_ID_LOCO_GET_FSM_ID, self.GetFsmId, 0)
+        self._RegistHandler(ROBOT_API_ID_LOCO_GET_FSM_MODE, self.GetFsmMode, 0)
+        self._RegistHandler(ROBOT_API_ID_LOCO_GET_BALANCE_MODE, self.GetBalanceMode, 0)
+        self._RegistHandler(ROBOT_API_ID_LOCO_GET_SWING_HEIGHT, self.GetSwingHeight, 0)
+        self._RegistHandler(ROBOT_API_ID_LOCO_GET_STAND_HEIGHT, self.GetStandHeight, 0)
+        self._RegistHandler(ROBOT_API_ID_LOCO_GET_PHASE, self.GetPhase, 0)
+        self._RegistHandler(ROBOT_API_ID_LOCO_SET_FSM_ID, self.SetFsmId, 0)
+        self._RegistHandler(ROBOT_API_ID_LOCO_SET_BALANCE_MODE, self.SetBalanceMode, 0)
+        self._RegistHandler(ROBOT_API_ID_LOCO_SET_SWING_HEIGHT, self.SetSwingHeight, 0)
+        self._RegistHandler(ROBOT_API_ID_LOCO_SET_STAND_HEIGHT, self.SetStandHeight, 0)
+        self._RegistHandler(ROBOT_API_ID_LOCO_SET_VELOCITY, self.SetVelocity, 0)
+        self._RegistHandler(ROBOT_API_ID_LOCO_SET_ARM_TASK, self.SetArmTask, 0)
+
+    def GetFsmId(self, _parameter: str):
+        return 0, _json_data(self.state.fsm_id)
+
+    def GetFsmMode(self, _parameter: str):
+        return 0, _json_data(self.state.fsm_mode)
+
+    def GetBalanceMode(self, _parameter: str):
+        return 0, _json_data(self.state.balance_mode)
+
+    def GetSwingHeight(self, _parameter: str):
+        return 0, _json_data(self.state.swing_height)
+
+    def GetStandHeight(self, _parameter: str):
+        return 0, _json_data(self.state.stand_height)
+
+    def GetPhase(self, _parameter: str):
+        return 0, _json_data(self.state.phase)
+
+    def SetFsmId(self, parameter: str):
+        self.state.fsm_id = int(_parse_json(parameter).get("data", self.state.fsm_id))
+        print(f"[G1HighLevelStub] sport SetFsmId -> {self.state.fsm_id}")
+        return 0, ""
+
+    def SetBalanceMode(self, parameter: str):
+        self.state.balance_mode = int(
+            _parse_json(parameter).get("data", self.state.balance_mode)
+        )
+        print(f"[G1HighLevelStub] sport SetBalanceMode -> {self.state.balance_mode}")
+        return 0, ""
+
+    def SetSwingHeight(self, parameter: str):
+        self.state.swing_height = float(
+            _parse_json(parameter).get("data", self.state.swing_height)
+        )
+        print(f"[G1HighLevelStub] sport SetSwingHeight -> {self.state.swing_height}")
+        return 0, ""
+
+    def SetStandHeight(self, parameter: str):
+        self.state.stand_height = float(
+            _parse_json(parameter).get("data", self.state.stand_height)
+        )
+        print(f"[G1HighLevelStub] sport SetStandHeight -> {self.state.stand_height}")
+        return 0, ""
+
+    def SetVelocity(self, parameter: str):
+        data = _parse_json(parameter)
+        velocity = data.get("velocity", self.state.velocity)
+        self.state.velocity = tuple(float(value) for value in velocity)
+        self.state.velocity_duration = float(data.get("duration", 0.0))
+        print(
+            "[G1HighLevelStub] sport SetVelocity -> "
+            f"{self.state.velocity}, duration={self.state.velocity_duration}"
+        )
+        return 0, ""
+
+    def SetArmTask(self, parameter: str):
+        self.state.arm_task_id = int(_parse_json(parameter).get("data", 0))
+        print(f"[G1HighLevelStub] sport SetArmTask -> {self.state.arm_task_id}")
+        return 0, ""
+
+
+ACTION_LIST = {
+    "release arm": 99,
+    "two-hand kiss": 11,
+    "left kiss": 12,
+    "right kiss": 13,
+    "hands up": 15,
+    "clap": 17,
+    "high five": 18,
+    "hug": 19,
+    "heart": 20,
+    "right heart": 21,
+    "reject": 22,
+    "right hand up": 23,
+    "x-ray": 24,
+    "face wave": 25,
+    "high wave": 26,
+    "shake hand": 27,
+}
+
+
+class G1ArmActionStubServer(Server):
+    def __init__(self):
+        super().__init__(ARM_ACTION_SERVICE_NAME)
+        self.last_action_id = None
+
+    def Init(self):
+        self._SetApiVersion(ARM_ACTION_API_VERSION)
+        self._RegistHandler(ROBOT_API_ID_ARM_ACTION_EXECUTE_ACTION, self.ExecuteAction, 0)
+        self._RegistHandler(ROBOT_API_ID_ARM_ACTION_GET_ACTION_LIST, self.GetActionList, 0)
+
+    def ExecuteAction(self, parameter: str):
+        self.last_action_id = int(_parse_json(parameter).get("data", 0))
+        print(f"[G1HighLevelStub] arm ExecuteAction -> {self.last_action_id}")
+        return 0, ""
+
+    def GetActionList(self, _parameter: str):
+        return 0, json.dumps(ACTION_LIST)
+
+
+class G1AudioStubServer(Server):
+    def __init__(self):
+        super().__init__(AUDIO_SERVICE_NAME)
+        self.volume = 80
+        self.last_tts = None
+        self.last_led = (0, 0, 0)
+
+    def Init(self):
+        self._SetApiVersion(AUDIO_API_VERSION)
+        self._RegistHandler(ROBOT_API_ID_AUDIO_TTS, self.TtsMaker, 0)
+        self._RegistHandler(ROBOT_API_ID_AUDIO_ASR, self.Asr, 0)
+        self._RegistHandler(ROBOT_API_ID_AUDIO_START_PLAY, self.StartPlay, 0)
+        self._RegistHandler(ROBOT_API_ID_AUDIO_STOP_PLAY, self.StopPlay, 0)
+        self._RegistHandler(ROBOT_API_ID_AUDIO_GET_VOLUME, self.GetVolume, 0)
+        self._RegistHandler(ROBOT_API_ID_AUDIO_SET_VOLUME, self.SetVolume, 0)
+        self._RegistHandler(ROBOT_API_ID_AUDIO_SET_RGB_LED, self.SetRgbLed, 0)
+
+    def TtsMaker(self, parameter: str):
+        data = _parse_json(parameter)
+        self.last_tts = {
+            "text": data.get("text", ""),
+            "speaker_id": int(data.get("speaker_id", 0)),
+        }
+        print(
+            "[G1HighLevelStub] voice TtsMaker -> "
+            f"speaker={self.last_tts['speaker_id']}, text={self.last_tts['text']}"
+        )
+        return 0, ""
+
+    def Asr(self, _parameter: str):
+        return 0, ""
+
+    def StartPlay(self, _parameter: str):
+        return 0, ""
+
+    def StopPlay(self, _parameter: str):
+        return 0, ""
+
+    def GetVolume(self, _parameter: str):
+        return 0, json.dumps({"volume": self.volume})
+
+    def SetVolume(self, parameter: str):
+        self.volume = int(_parse_json(parameter).get("volume", self.volume))
+        print(f"[G1HighLevelStub] voice SetVolume -> {self.volume}")
+        return 0, ""
+
+    def SetRgbLed(self, parameter: str):
+        data = _parse_json(parameter)
+        self.last_led = (
+            int(data.get("R", 0)),
+            int(data.get("G", 0)),
+            int(data.get("B", 0)),
+        )
+        print(f"[G1HighLevelStub] voice LedControl -> {self.last_led}")
+        return 0, ""
+
+
+def start_g1_high_level_stubs():
+    servers = [
+        G1LocoStubServer(),
+        G1ArmActionStubServer(),
+        G1AudioStubServer(),
+    ]
+    for server in servers:
+        server.Init()
+        server.Start(False)
+    print("[G1HighLevelStub] sport/arm/voice RPC stubs started")
+    return servers

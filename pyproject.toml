@@ -1,0 +1,14 @@
+[project]
+name = "unitree-mujoco"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mujoco>=3.9.0",
+    "pygame>=2.6.1",
+    "unitree-sdk2py",
+]
+
+[tool.uv.sources]
+unitree-sdk2py = { git = "https://github.com/unitreerobotics/unitree_sdk2_python" }

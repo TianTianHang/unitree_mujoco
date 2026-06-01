@@ -1,0 +1,65 @@
+import json
+import sys
+import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "unitree_sdk2_python"))
+
+from g1_high_level_stub import (  # noqa: E402
+    ACTION_LIST,
+    G1ArmActionStubServer,
+    G1AudioStubServer,
+    G1LocoStubServer,
+)
+
+
+class G1HighLevelStubTest(unittest.TestCase):
+    def test_loco_defaults_allow_cli_arm_action_precheck(self):
+        server = G1LocoStubServer()
+
+        code, data = server.GetFsmId("{}")
+
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(data)["data"], 500)
+
+    def test_loco_setters_update_stub_state(self):
+        server = G1LocoStubServer()
+
+        self.assertEqual(server.SetFsmId(json.dumps({"data": 1})), (0, ""))
+        self.assertEqual(server.SetBalanceMode(json.dumps({"data": 2})), (0, ""))
+        self.assertEqual(
+            server.SetVelocity(json.dumps({"velocity": [0.1, 0.2, 0.3], "duration": 4.0})),
+            (0, ""),
+        )
+
+        self.assertEqual(server.state.fsm_id, 1)
+        self.assertEqual(server.state.balance_mode, 2)
+        self.assertEqual(server.state.velocity, (0.1, 0.2, 0.3))
+        self.assertEqual(server.state.velocity_duration, 4.0)
+
+    def test_arm_action_list_matches_known_actions(self):
+        server = G1ArmActionStubServer()
+
+        code, data = server.GetActionList("{}")
+
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(data), ACTION_LIST)
+
+    def test_audio_tts_and_volume_are_recorded(self):
+        server = G1AudioStubServer()
+
+        self.assertEqual(
+            server.TtsMaker(json.dumps({"text": "hello", "speaker_id": 1})),
+            (0, ""),
+        )
+        self.assertEqual(server.SetVolume(json.dumps({"volume": 42})), (0, ""))
+        code, data = server.GetVolume("{}")
+
+        self.assertEqual(server.last_tts, {"text": "hello", "speaker_id": 1})
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(data)["volume"], 42)
+
+
+if __name__ == "__main__":
+    unittest.main()
