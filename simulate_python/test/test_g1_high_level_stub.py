@@ -54,6 +54,21 @@ class G1HighLevelStubTest(unittest.TestCase):
         self.assertEqual(server.state.balance_mode, 2)
         self.assertEqual(server.state.velocity, (0.1, 0.2, 0.3))
         self.assertEqual(server.state.velocity_duration, 4.0)
+        self.assertFalse(server.state.velocity_duration_is_continuous)
+
+    def test_loco_set_velocity_marks_sdk_continuous_move_sentinel(self):
+        server = G1LocoStubServer()
+
+        self.assertEqual(
+            server.SetVelocity(
+                json.dumps({"velocity": [-0.4, 0.0, 0.0], "duration": 864000.0})
+            ),
+            (0, ""),
+        )
+
+        self.assertEqual(server.state.velocity, (-0.4, 0.0, 0.0))
+        self.assertEqual(server.state.velocity_duration, 864000.0)
+        self.assertTrue(server.state.velocity_duration_is_continuous)
 
     def test_arm_action_list_matches_known_actions(self):
         server = G1ArmActionStubServer()

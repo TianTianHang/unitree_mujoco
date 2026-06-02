@@ -191,6 +191,7 @@ class G1LocoStubState:
     phase: str = "stub"
     velocity: tuple = (0.0, 0.0, 0.0)
     velocity_duration: float = 0.0
+    velocity_duration_is_continuous: bool = False
     arm_task_id: int = 0
 
 
@@ -263,9 +264,17 @@ class G1LocoStubServer(Server):
         velocity = data.get("velocity", self.state.velocity)
         self.state.velocity = tuple(float(value) for value in velocity)
         self.state.velocity_duration = float(data.get("duration", 0.0))
+        self.state.velocity_duration_is_continuous = (
+            self.state.velocity_duration >= 864000.0
+        )
+        duration_note = (
+            " (SDK continuous-move sentinel)"
+            if self.state.velocity_duration_is_continuous
+            else ""
+        )
         print(
             "[G1HighLevelStub] sport SetVelocity -> "
-            f"{self.state.velocity}, duration={self.state.velocity_duration}"
+            f"{self.state.velocity}, duration={self.state.velocity_duration}{duration_note}"
         )
         return 0, ""
 
