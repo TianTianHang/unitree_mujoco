@@ -8,10 +8,27 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "unitree_sdk2_pytho
 
 from g1_high_level_stub import (  # noqa: E402
     ACTION_LIST,
+    ASR_TOPIC,
+    G1AsrStdinPublisher,
     G1ArmActionStubServer,
     G1AudioStubServer,
     G1LocoStubServer,
+    String_,
+    g1_asr_payload,
 )
+
+
+class FakePublisher:
+    def __init__(self):
+        self.inited = False
+        self.samples = []
+
+    def Init(self):
+        self.inited = True
+
+    def Write(self, sample):
+        self.samples.append(sample)
+        return True
 
 
 class G1HighLevelStubTest(unittest.TestCase):
@@ -59,6 +76,39 @@ class G1HighLevelStubTest(unittest.TestCase):
         self.assertEqual(server.last_tts, {"text": "hello", "speaker_id": 1})
         self.assertEqual(code, 0)
         self.assertEqual(json.loads(data)["volume"], 42)
+
+    def test_asr_payload_wraps_plain_text_as_final_json(self):
+        payload = json.loads(g1_asr_payload("你好", index=7, timestamp=123))
+
+        self.assertEqual(payload["index"], 7)
+        self.assertEqual(payload["timestamp"], 123)
+        self.assertEqual(payload["text"], "你好")
+        self.assertEqual(payload["is_final"], 1)
+        self.assertEqual(payload["language"], "zh")
+
+    def test_asr_payload_accepts_json_with_defaults(self):
+        payload = json.loads(
+            g1_asr_payload('{"text":"站起来","confidence":0.9}', index=2, timestamp=456)
+        )
+
+        self.assertEqual(payload["index"], 2)
+        self.assertEqual(payload["timestamp"], 456)
+        self.assertEqual(payload["text"], "站起来")
+        self.assertEqual(payload["confidence"], 0.9)
+        self.assertEqual(payload["is_final"], 1)
+
+    def test_asr_stdin_publisher_writes_string_samples(self):
+        fake = FakePublisher()
+        publisher = G1AsrStdinPublisher(publisher=fake)
+
+        publisher.Init()
+        wrote = publisher.publish_line("你好")
+
+        self.assertTrue(fake.inited)
+        self.assertTrue(wrote)
+        self.assertIsInstance(fake.samples[0], String_)
+        self.assertEqual(json.loads(fake.samples[0].data)["text"], "你好")
+        self.assertEqual(publisher.topic, ASR_TOPIC)
 
 
 if __name__ == "__main__":

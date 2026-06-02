@@ -6,13 +6,14 @@ import threading
 
 from unitree_sdk2py.core.channel import ChannelFactoryInitialize
 from unitree_sdk2py_bridge import UnitreeSdk2Bridge, ElasticBand
-from g1_high_level_stub import start_g1_high_level_stubs
+from g1_high_level_stub import start_g1_asr_stdin_publisher, start_g1_high_level_stubs
 
 import config
 
 
 locker = threading.Lock()
 g1_high_level_stubs = []
+g1_asr_stdin_publisher = None
 
 mj_model = mujoco.MjModel.from_xml_path(config.ROBOT_SCENE)
 mj_data = mujoco.MjData(mj_model)
@@ -38,13 +39,15 @@ time.sleep(0.2)
 
 
 def SimulationThread():
-    global mj_data, mj_model, g1_high_level_stubs
+    global mj_data, mj_model, g1_high_level_stubs, g1_asr_stdin_publisher
 
     ChannelFactoryInitialize(config.DOMAIN_ID, config.INTERFACE)
     unitree = UnitreeSdk2Bridge(mj_model, mj_data)
 
     if config.ENABLE_G1_HIGH_LEVEL_STUB:
         g1_high_level_stubs = start_g1_high_level_stubs()
+    if config.ENABLE_G1_ASR_STDIN_PUBLISHER:
+        g1_asr_stdin_publisher = start_g1_asr_stdin_publisher()
 
     if config.USE_JOYSTICK:
         unitree.SetupJoystick(device_id=0, js_type=config.JOYSTICK_TYPE)

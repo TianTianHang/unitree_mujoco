@@ -15,3 +15,7 @@ VIEWER_DT = 0.02  # 50 fps for viewer
 
 # G1 high-level RPC stubs answer sport/arm/voice API calls without moving MuJoCo.
 ENABLE_G1_HIGH_LEVEL_STUB = ROBOT == "g1"
+
+# When enabled, each line typed into the simulator terminal is published as a
+# final G1 ASR event on rt/audio_msg. Plain text is wrapped as ASR JSON.
+ENABLE_G1_ASR_STDIN_PUBLISHER = ROBOT == "g1"

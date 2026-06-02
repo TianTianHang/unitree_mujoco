@@ -1,7 +1,11 @@
 import json
+import sys
+import time
 from dataclasses import dataclass
+from threading import Thread
 
 try:
+    from unitree_sdk2py.core.channel import ChannelPublisher
     from unitree_sdk2py.g1.arm.g1_arm_action_api import (
         ARM_ACTION_API_VERSION,
         ARM_ACTION_SERVICE_NAME,
@@ -19,6 +23,7 @@ try:
         ROBOT_API_ID_AUDIO_STOP_PLAY,
         ROBOT_API_ID_AUDIO_TTS,
     )
+    from unitree_sdk2py.idl.std_msgs.msg.dds_ import String_
     from unitree_sdk2py.g1.loco.g1_loco_api import (
         LOCO_API_VERSION,
         LOCO_SERVICE_NAME,
@@ -67,6 +72,20 @@ except ModuleNotFoundError:
     ROBOT_API_ID_LOCO_SET_VELOCITY = 7105
     ROBOT_API_ID_LOCO_SET_ARM_TASK = 7106
 
+    class String_:
+        def __init__(self, data: str = ""):
+            self.data = data
+
+    class ChannelPublisher:
+        def __init__(self, _name: str, _type):
+            pass
+
+        def Init(self):
+            pass
+
+        def Write(self, _sample, _timeout=None):
+            return True
+
     class Server:
         def __init__(self, _name: str):
             pass
@@ -89,6 +108,77 @@ def _parse_json(parameter: str):
     if not parameter:
         return {}
     return json.loads(parameter)
+
+
+ASR_TOPIC = "rt/audio_msg"
+
+
+def g1_asr_payload(line: str, *, index: int = 1, timestamp: int | None = None) -> str:
+    text = line.strip()
+    if not text:
+        raise ValueError("ASR input line cannot be empty")
+
+    timestamp = int(time.time() * 1000) if timestamp is None else timestamp
+    defaults = {
+        "index": index,
+        "timestamp": timestamp,
+        "text": text,
+        "angle": 0,
+        "speaker_id": 0,
+        "sense": "neutral",
+        "confidence": 1.0,
+        "language": "zh",
+        "is_final": 1,
+    }
+
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        payload = defaults
+    else:
+        if not isinstance(payload, dict):
+            raise ValueError("ASR JSON input must be an object")
+        payload = {**defaults, **payload}
+
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+
+
+class G1AsrStdinPublisher:
+    def __init__(self, topic: str = ASR_TOPIC, stdin=None, publisher=None):
+        self.topic = topic
+        self.stdin = stdin or sys.stdin
+        self.publisher = publisher or ChannelPublisher(topic, String_)
+        self.index = 0
+
+    def Init(self):
+        self.publisher.Init()
+
+    def publish_line(self, line: str):
+        if not line.strip():
+            return False
+
+        self.index += 1
+        payload = g1_asr_payload(line, index=self.index)
+        return self.publisher.Write(String_(payload))
+
+    def Run(self):
+        print(
+            "[G1HighLevelStub] ASR stdin publisher started; "
+            "type text or ASR JSON lines to publish rt/audio_msg"
+        )
+        for line in self.stdin:
+            try:
+                if self.publish_line(line):
+                    print(f"[G1HighLevelStub] asr -> {line.strip()}")
+                else:
+                    print("[G1HighLevelStub] asr skipped empty line")
+            except Exception as error:
+                print(f"[G1HighLevelStub] asr publish error: {error}")
+
+    def Start(self):
+        thread = Thread(target=self.Run, name="g1_asr_stdin", daemon=True)
+        thread.start()
+        return thread
 
 
 @dataclass
@@ -292,3 +382,10 @@ def start_g1_high_level_stubs():
         server.Start(False)
     print("[G1HighLevelStub] sport/arm/voice RPC stubs started")
     return servers
+
+
+def start_g1_asr_stdin_publisher():
+    publisher = G1AsrStdinPublisher()
+    publisher.Init()
+    publisher.Start()
+    return publisher
