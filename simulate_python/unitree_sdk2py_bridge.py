@@ -65,13 +65,17 @@ class UnitreeSdk2Bridge:
         )
         self.lowStateThread.Start()
 
-        self.high_state = unitree_go_msg_dds__SportModeState_()
-        self.high_state_puber = ChannelPublisher(TOPIC_HIGHSTATE, SportModeState_)
-        self.high_state_puber.Init()
-        self.HighStateThread = RecurrentThread(
-            interval=self.dt, target=self.PublishHighState, name="sim_highstate"
-        )
-        self.HighStateThread.Start()
+        self.high_state = None
+        self.high_state_puber = None
+        self.HighStateThread = None
+        if config.ROBOT != "g1":
+            self.high_state = unitree_go_msg_dds__SportModeState_()
+            self.high_state_puber = ChannelPublisher(TOPIC_HIGHSTATE, SportModeState_)
+            self.high_state_puber.Init()
+            self.HighStateThread = RecurrentThread(
+                interval=self.dt, target=self.PublishHighState, name="sim_highstate"
+            )
+            self.HighStateThread.Start()
 
         self.wireless_controller = unitree_go_msg_dds__WirelessController_()
         self.wireless_controller_puber = ChannelPublisher(
@@ -223,6 +227,8 @@ class UnitreeSdk2Bridge:
             self.low_state_puber.Write(self.low_state)
 
     def PublishHighState(self):
+        if self.high_state_puber is None:
+            return
 
         if self.mj_data != None:
             self.high_state.position[0] = self.mj_data.sensordata[

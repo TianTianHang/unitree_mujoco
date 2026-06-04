@@ -13,6 +13,10 @@ from g1_high_level_stub import (  # noqa: E402
     G1ArmActionStubServer,
     G1AudioStubServer,
     G1LocoStubServer,
+    G1LocoStubState,
+    G1SportModeStatePublisher,
+    SPORT_MODE_STATE_TOPIC,
+    SportModeState_,
     String_,
     g1_asr_payload,
 )
@@ -69,6 +73,35 @@ class G1HighLevelStubTest(unittest.TestCase):
         self.assertEqual(server.state.velocity, (-0.4, 0.0, 0.0))
         self.assertEqual(server.state.velocity_duration, 864000.0)
         self.assertTrue(server.state.velocity_duration_is_continuous)
+
+    def test_sport_mode_state_publisher_uses_shared_loco_state(self):
+        state = G1LocoStubState(fsm_id=801, fsm_mode=3, arm_task_id=27)
+        state.arm_task_start_time = 100.0
+        fake = FakePublisher()
+        publisher = G1SportModeStatePublisher(
+            state=state, publisher=fake, interval=0.001
+        )
+
+        publisher.Init()
+        wrote = publisher.publish_once()
+
+        self.assertTrue(fake.inited)
+        self.assertTrue(wrote)
+        self.assertIsInstance(fake.samples[0], SportModeState_)
+        self.assertEqual(fake.samples[0].fsm_id, 801)
+        self.assertEqual(fake.samples[0].fsm_mode, 3)
+        self.assertEqual(fake.samples[0].task_id, 27)
+        self.assertGreaterEqual(fake.samples[0].task_time, 0.0)
+        self.assertEqual(publisher.topic, SPORT_MODE_STATE_TOPIC)
+
+    def test_arm_action_updates_shared_sport_mode_task_fields(self):
+        state = G1LocoStubState()
+        server = G1ArmActionStubServer(state)
+
+        self.assertEqual(server.ExecuteAction(json.dumps({"data": 15})), (0, ""))
+
+        self.assertEqual(state.arm_task_id, 15)
+        self.assertIsNotNone(state.arm_task_start_time)
 
     def test_arm_action_list_matches_known_actions(self):
         server = G1ArmActionStubServer()

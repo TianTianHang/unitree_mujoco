@@ -23,6 +23,34 @@ try:
         ROBOT_API_ID_AUDIO_STOP_PLAY,
         ROBOT_API_ID_AUDIO_TTS,
     )
+    try:
+        from unitree_sdk2py.idl.unitree_hg.msg.dds_ import SportModeState_
+    except (ImportError, ModuleNotFoundError):
+        try:
+            import cyclonedds.idl as idl
+            import cyclonedds.idl.annotations as annotate
+            import cyclonedds.idl.types as types
+
+            @dataclass
+            @annotate.final
+            @annotate.autoid("sequential")
+            class SportModeState_(
+                idl.IdlStruct, typename="unitree_hg.msg.dds_.SportModeState_"
+            ):
+                fsm_id: types.uint32 = 0
+                fsm_mode: types.uint32 = 0
+                task_id: types.uint32 = 0
+                task_time: types.float32 = 0.0
+
+        except (ImportError, ModuleNotFoundError):
+
+            @dataclass
+            class SportModeState_:
+                fsm_id: int = 0
+                fsm_mode: int = 0
+                task_id: int = 0
+                task_time: float = 0.0
+
     from unitree_sdk2py.idl.std_msgs.msg.dds_ import String_
     from unitree_sdk2py.g1.loco.g1_loco_api import (
         LOCO_API_VERSION,
@@ -76,6 +104,13 @@ except ModuleNotFoundError:
         def __init__(self, data: str = ""):
             self.data = data
 
+    @dataclass
+    class SportModeState_:
+        fsm_id: int = 0
+        fsm_mode: int = 0
+        task_id: int = 0
+        task_time: float = 0.0
+
     class ChannelPublisher:
         def __init__(self, _name: str, _type):
             pass
@@ -111,6 +146,7 @@ def _parse_json(parameter: str):
 
 
 ASR_TOPIC = "rt/audio_msg"
+SPORT_MODE_STATE_TOPIC = "rt/sportmodestate"
 
 
 def g1_asr_payload(line: str, *, index: int = 1, timestamp: int | None = None) -> str:
@@ -193,6 +229,57 @@ class G1LocoStubState:
     velocity_duration: float = 0.0
     velocity_duration_is_continuous: bool = False
     arm_task_id: int = 0
+    arm_task_start_time: float | None = None
+
+    def task_time(self) -> float:
+        if self.arm_task_id == 0 or self.arm_task_start_time is None:
+            return 0.0
+        return max(0.0, time.monotonic() - self.arm_task_start_time)
+
+
+class G1SportModeStatePublisher:
+    def __init__(
+        self,
+        state=None,
+        topic: str = SPORT_MODE_STATE_TOPIC,
+        publisher=None,
+        interval: float = 0.05,
+    ):
+        self.state = state or G1LocoStubState()
+        self.topic = topic
+        self.publisher = publisher or ChannelPublisher(topic, SportModeState_)
+        self.interval = interval
+
+    def Init(self):
+        self.publisher.Init()
+
+    def sample(self):
+        return SportModeState_(
+            fsm_id=int(self.state.fsm_id),
+            fsm_mode=int(self.state.fsm_mode),
+            task_id=int(self.state.arm_task_id),
+            task_time=float(self.state.task_time()),
+        )
+
+    def publish_once(self):
+        return self.publisher.Write(self.sample())
+
+    def Run(self):
+        print(
+            "[G1HighLevelStub] SportModeState publisher started; "
+            f"publishing {self.topic}"
+        )
+        while True:
+            try:
+                self.publish_once()
+            except Exception as error:
+                print(f"[G1HighLevelStub] sport-state publish error: {error}")
+            time.sleep(self.interval)
+
+    def Start(self):
+        thread = Thread(target=self.Run, name="g1_sport_state", daemon=True)
+        thread.start()
+        return thread
 
 
 class G1LocoStubServer(Server):
@@ -305,8 +392,9 @@ ACTION_LIST = {
 
 
 class G1ArmActionStubServer(Server):
-    def __init__(self):
+    def __init__(self, state=None):
         super().__init__(ARM_ACTION_SERVICE_NAME)
+        self.state = state or G1LocoStubState()
         self.last_action_id = None
 
     def Init(self):
@@ -316,6 +404,8 @@ class G1ArmActionStubServer(Server):
 
     def ExecuteAction(self, parameter: str):
         self.last_action_id = int(_parse_json(parameter).get("data", 0))
+        self.state.arm_task_id = self.last_action_id
+        self.state.arm_task_start_time = time.monotonic()
         print(f"[G1HighLevelStub] arm ExecuteAction -> {self.last_action_id}")
         return 0, ""
 
@@ -381,16 +471,20 @@ class G1AudioStubServer(Server):
 
 
 def start_g1_high_level_stubs():
+    state = G1LocoStubState()
     servers = [
-        G1LocoStubServer(),
-        G1ArmActionStubServer(),
+        G1LocoStubServer(state),
+        G1ArmActionStubServer(state),
         G1AudioStubServer(),
     ]
     for server in servers:
         server.Init()
         server.Start(False)
-    print("[G1HighLevelStub] sport/arm/voice RPC stubs started")
-    return servers
+    sport_state_publisher = G1SportModeStatePublisher(state)
+    sport_state_publisher.Init()
+    sport_state_publisher.Start()
+    print("[G1HighLevelStub] sport/arm/voice RPC stubs and SportModeState publisher started")
+    return [*servers, sport_state_publisher]
 
 
 def start_g1_asr_stdin_publisher():
