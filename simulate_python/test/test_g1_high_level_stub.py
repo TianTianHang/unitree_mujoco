@@ -9,9 +9,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "unitree_sdk2_pytho
 from g1_high_level_stub import (  # noqa: E402
     ACTION_LIST,
     ASR_TOPIC,
+    BMS_STATE_TOPIC,
+    BmsState_,
     G1AsrStdinPublisher,
     G1ArmActionStubServer,
     G1AudioStubServer,
+    G1BmsStatePublisher,
     G1LocoStubServer,
     G1LocoStubState,
     G1SportModeStatePublisher,
@@ -93,6 +96,23 @@ class G1HighLevelStubTest(unittest.TestCase):
         self.assertEqual(fake.samples[0].task_id, 27)
         self.assertGreaterEqual(fake.samples[0].task_time, 0.0)
         self.assertEqual(publisher.topic, SPORT_MODE_STATE_TOPIC)
+
+    def test_bms_state_publisher_writes_battery_diagnostic_sample(self):
+        fake = FakePublisher()
+        publisher = G1BmsStatePublisher(publisher=fake, interval=0.001)
+
+        publisher.Init()
+        wrote = publisher.publish_once()
+
+        self.assertTrue(fake.inited)
+        self.assertTrue(wrote)
+        self.assertIsInstance(fake.samples[0], BmsState_)
+        self.assertEqual(fake.samples[0].soc, 100)
+        self.assertEqual(fake.samples[0].soh, 100)
+        self.assertEqual(len(fake.samples[0].cell_vol), 40)
+        self.assertEqual(len(fake.samples[0].temperature), 12)
+        self.assertEqual(fake.samples[0].bmsstate, (0, 0, 0, 0, 0))
+        self.assertEqual(publisher.topic, BMS_STATE_TOPIC)
 
     def test_arm_action_updates_shared_sport_mode_task_fields(self):
         state = G1LocoStubState()

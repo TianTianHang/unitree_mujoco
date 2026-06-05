@@ -24,7 +24,7 @@ try:
         ROBOT_API_ID_AUDIO_TTS,
     )
     try:
-        from unitree_sdk2py.idl.unitree_hg.msg.dds_ import SportModeState_
+        from unitree_sdk2py.idl.unitree_hg.msg.dds_ import BmsState_, SportModeState_
     except (ImportError, ModuleNotFoundError):
         try:
             import cyclonedds.idl as idl
@@ -42,6 +42,23 @@ try:
                 task_id: types.uint32 = 0
                 task_time: types.float32 = 0.0
 
+            @dataclass
+            @annotate.final
+            @annotate.autoid("sequential")
+            class BmsState_(idl.IdlStruct, typename="unitree_hg.msg.dds_.BmsState_"):
+                version_high: types.uint8 = 0
+                version_low: types.uint8 = 0
+                fn: types.uint8 = 0
+                cell_vol: types.sequence[types.uint16] = None
+                bmsvoltage: types.sequence[types.uint32] = None
+                current: types.int32 = 0
+                soc: types.uint8 = 0
+                soh: types.uint8 = 0
+                temperature: types.sequence[types.int16] = None
+                cycle: types.uint16 = 0
+                manufacturer_date: types.uint16 = 0
+                bmsstate: types.sequence[types.uint32] = None
+
         except (ImportError, ModuleNotFoundError):
 
             @dataclass
@@ -50,6 +67,21 @@ try:
                 fsm_mode: int = 0
                 task_id: int = 0
                 task_time: float = 0.0
+
+            @dataclass
+            class BmsState_:
+                version_high: int = 0
+                version_low: int = 0
+                fn: int = 0
+                cell_vol: tuple = ()
+                bmsvoltage: tuple = ()
+                current: int = 0
+                soc: int = 0
+                soh: int = 0
+                temperature: tuple = ()
+                cycle: int = 0
+                manufacturer_date: int = 0
+                bmsstate: tuple = ()
 
     from unitree_sdk2py.idl.std_msgs.msg.dds_ import String_
     from unitree_sdk2py.g1.loco.g1_loco_api import (
@@ -111,6 +143,21 @@ except ModuleNotFoundError:
         task_id: int = 0
         task_time: float = 0.0
 
+    @dataclass
+    class BmsState_:
+        version_high: int = 0
+        version_low: int = 0
+        fn: int = 0
+        cell_vol: tuple = ()
+        bmsvoltage: tuple = ()
+        current: int = 0
+        soc: int = 0
+        soh: int = 0
+        temperature: tuple = ()
+        cycle: int = 0
+        manufacturer_date: int = 0
+        bmsstate: tuple = ()
+
     class ChannelPublisher:
         def __init__(self, _name: str, _type):
             pass
@@ -146,6 +193,7 @@ def _parse_json(parameter: str):
 
 
 ASR_TOPIC = "rt/audio_msg"
+BMS_STATE_TOPIC = "rt/lf/bmsstate"
 SPORT_MODE_STATE_TOPIC = "rt/sportmodestate"
 
 
@@ -278,6 +326,57 @@ class G1SportModeStatePublisher:
 
     def Start(self):
         thread = Thread(target=self.Run, name="g1_sport_state", daemon=True)
+        thread.start()
+        return thread
+
+
+class G1BmsStatePublisher:
+    def __init__(
+        self,
+        topic: str = BMS_STATE_TOPIC,
+        publisher=None,
+        interval: float = 0.2,
+    ):
+        self.topic = topic
+        self.publisher = publisher or ChannelPublisher(topic, BmsState_)
+        self.interval = interval
+
+    def Init(self):
+        self.publisher.Init()
+
+    def sample(self):
+        return BmsState_(
+            version_high=1,
+            version_low=0,
+            fn=0,
+            cell_vol=tuple([3800] * 40),
+            bmsvoltage=(15200, 15200, 15200),
+            current=0,
+            soc=100,
+            soh=100,
+            temperature=tuple([250] * 12),
+            cycle=1,
+            manufacturer_date=0,
+            bmsstate=(0, 0, 0, 0, 0),
+        )
+
+    def publish_once(self):
+        return self.publisher.Write(self.sample())
+
+    def Run(self):
+        print(
+            "[G1HighLevelStub] BmsState publisher started; "
+            f"publishing {self.topic}"
+        )
+        while True:
+            try:
+                self.publish_once()
+            except Exception as error:
+                print(f"[G1HighLevelStub] bms-state publish error: {error}")
+            time.sleep(self.interval)
+
+    def Start(self):
+        thread = Thread(target=self.Run, name="g1_bms_state", daemon=True)
         thread.start()
         return thread
 
@@ -483,8 +582,14 @@ def start_g1_high_level_stubs():
     sport_state_publisher = G1SportModeStatePublisher(state)
     sport_state_publisher.Init()
     sport_state_publisher.Start()
-    print("[G1HighLevelStub] sport/arm/voice RPC stubs and SportModeState publisher started")
-    return [*servers, sport_state_publisher]
+    bms_state_publisher = G1BmsStatePublisher()
+    bms_state_publisher.Init()
+    bms_state_publisher.Start()
+    print(
+        "[G1HighLevelStub] sport/arm/voice RPC stubs, SportModeState publisher, "
+        "and BmsState publisher started"
+    )
+    return [*servers, sport_state_publisher, bms_state_publisher]
 
 
 def start_g1_asr_stdin_publisher():
