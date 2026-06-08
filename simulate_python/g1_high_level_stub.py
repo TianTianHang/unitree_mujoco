@@ -517,6 +517,8 @@ class G1AudioStubServer(Server):
         super().__init__(AUDIO_SERVICE_NAME)
         self.volume = 80
         self.last_tts = None
+        self.last_play_stream = None
+        self.last_play_stop = None
         self.last_led = (0, 0, 0)
 
     def Init(self):
@@ -544,10 +546,24 @@ class G1AudioStubServer(Server):
     def Asr(self, _parameter: str):
         return 0, ""
 
-    def StartPlay(self, _parameter: str):
+    def StartPlay(self, parameter: str):
+        data = _parse_json(parameter)
+        self.last_play_stream = {
+            "app_name": data.get("app_name", ""),
+            "stream_id": data.get("stream_id", ""),
+        }
+        print(
+            "[G1HighLevelStub] voice PlayStream -> "
+            f"app={self.last_play_stream['app_name']}, stream={self.last_play_stream['stream_id']}"
+        )
         return 0, ""
 
-    def StopPlay(self, _parameter: str):
+    def StopPlay(self, parameter: str):
+        data = _parse_json(parameter)
+        self.last_play_stop = {
+            "app_name": data.get("app_name", ""),
+        }
+        print(f"[G1HighLevelStub] voice PlayStop -> app={self.last_play_stop['app_name']}")
         return 0, ""
 
     def GetVolume(self, _parameter: str):

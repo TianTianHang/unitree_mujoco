@@ -138,10 +138,20 @@ class G1HighLevelStubTest(unittest.TestCase):
             server.TtsMaker(json.dumps({"text": "hello", "speaker_id": 1})),
             (0, ""),
         )
+        self.assertEqual(
+            server.StartPlay(json.dumps({"app_name": "unitree-cli", "stream_id": "default"})),
+            (0, ""),
+        )
+        self.assertEqual(server.StopPlay(json.dumps({"app_name": "unitree-cli"})), (0, ""))
         self.assertEqual(server.SetVolume(json.dumps({"volume": 42})), (0, ""))
         code, data = server.GetVolume("{}")
 
         self.assertEqual(server.last_tts, {"text": "hello", "speaker_id": 1})
+        self.assertEqual(
+            server.last_play_stream,
+            {"app_name": "unitree-cli", "stream_id": "default"},
+        )
+        self.assertEqual(server.last_play_stop, {"app_name": "unitree-cli"})
         self.assertEqual(code, 0)
         self.assertEqual(json.loads(data)["volume"], 42)
 
